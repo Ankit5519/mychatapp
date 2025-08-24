@@ -1,44 +1,70 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>My GPT Chat</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <style>
-      body{font:16px system-ui;max-width:700px;margin:40px auto;padding:0 16px}
-      textarea{width:100%}
-      #box{border:1px solid #ddd;border-radius:12px;padding:16px}
-      button{padding:8px 12px;border-radius:8px;border:1px solid #ccc;cursor:pointer}
-      pre{white-space:pre-wrap}
-    </style>
-  </head>
-  <body>
-    <h2>My GPT Chat</h2>
-    <div id="box">
-      <textarea id="q" rows="3" placeholder="Ask anything..."></textarea><br/>
-      <button id="send">Send</button>
-      <p id="status"></p>
-      <pre id="out"></pre>
+<body style="font:16px system-ui;max-width:700px;margin:40px auto;padding:0 16px">
+  <h2>My GPT Chat (Pass Required)</h2>
+
+  <div id="passBox" style="border:1px solid #ddd;border-radius:12px;padding:12px;margin-bottom:16px">
+    <b>Enter pass code</b>
+    <input id="code" placeholder="e.g., AB12CD" style="margin-left:8px;padding:6px"/>
+    <button id="redeem">Redeem</button>
+    <span id="passStatus" style="margin-left:12px;color:#555"></span>
+    <p style="margin:8px 0 0 0;font-size:14px;color:#666">
+      Don’t have a code? Pay ₹10 and I’ll send you one manually for now.
+    </p>
+  </div>
+
+  <div id="chatBox" style="display:none;border:1px solid #ddd;border-radius:12px;padding:16px">
+    <div style="margin-bottom:8px;color:#555">
+      <span id="info">Messages left: —</span>
     </div>
 
-    <script>
-      const out = document.getElementById("out");
-      const statusEl = document.getElementById("status");
-      document.getElementById("send").onclick = async () => {
-        const user = document.getElementById("q").value.trim();
-        if (!user) return;
-        statusEl.textContent = "Thinking…";
-        out.textContent += "You: " + user + "\n";
-        const r = await fetch("/api/chat", {
-          method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ messages:[{role:"user", content:user}] })
-        });
-        const j = await r.json();
-        statusEl.textContent = "";
-        out.textContent += "Bot: " + (j.reply || j.error || "Error") + "\n\n";
-        document.getElementById("q").value = "";
-      };
-    </script>
-  </body>
-</html>
+    <textarea id="q" rows="3" style="width:100%" placeholder="Ask anything..."></textarea><br/>
+    <button id="send">Send</button>
+    <p id="status"></p>
+    <pre id="out" style="white-space:pre-wrap"></pre>
+  </div>
+
+  <script>
+    let token = null;
+    let messagesLeft = 0;
+
+    async function redeem() {
+      const code = document.getElementById("code").value.trim();
+      const r = await fetch("/api/redeem", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ code })
+      });
+      const j = await r.json();
+      const s = document.getElementById("passStatus");
+      if (!j.ok) { s.textContent = j.error || "Invalid code"; return; }
+      token = j.token;
+      messagesLeft = j.messagesLeft;
+      s.textContent = "Pass active.";
+      document.getElementById("info").textContent = "Messages left: " + messagesLeft;
+      document.getElementById("chatBox").style.display = "block";
+    }
+
+    async function send() {
+      if (!token) return alert("Redeem a pass code first.");
+      const user = document.getElementById("q").value.trim();
+      if (!user) return;
+      document.getElementById("status").textContent = "Thinking…";
+      document.getElementById("out").textContent += "You: " + user + "\n";
+      const r = await fetch("/api/chat", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ token, messages:[{role:"user", content:user}] })
+      });
+      const j = await r.json();
+      document.getElementById("status").textContent = "";
+      document.getElementById("out").textContent += "Bot: " + (j.reply || j.error || "Error") + "\n\n";
+      if (j.messagesLeft !== undefined) {
+        messagesLeft = j.messagesLeft;
+        document.getElementById("info").textContent = "Messages left: " + messagesLeft;
+      }
+      document.getElementById("q").value = "";
+    }
+
+    document.getElementById("redeem").onclick = redeem;
+    document.getElementById("send").onclick = send;
+  </script>
+</body>
