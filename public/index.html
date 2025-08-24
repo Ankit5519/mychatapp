@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>My GPT Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>
+      body{font:16px system-ui;max-width:700px;margin:40px auto;padding:0 16px}
+      textarea{width:100%}
+      #box{border:1px solid #ddd;border-radius:12px;padding:16px}
+      button{padding:8px 12px;border-radius:8px;border:1px solid #ccc;cursor:pointer}
+      pre{white-space:pre-wrap}
+    </style>
+  </head>
+  <body>
+    <h2>My GPT Chat</h2>
+    <div id="box">
+      <textarea id="q" rows="3" placeholder="Ask anything..."></textarea><br/>
+      <button id="send">Send</button>
+      <p id="status"></p>
+      <pre id="out"></pre>
+    </div>
+
+    <script>
+      const out = document.getElementById("out");
+      const statusEl = document.getElementById("status");
+      document.getElementById("send").onclick = async () => {
+        const user = document.getElementById("q").value.trim();
+        if (!user) return;
+        statusEl.textContent = "Thinking…";
+        out.textContent += "You: " + user + "\n";
+        const r = await fetch("/api/chat", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ messages:[{role:"user", content:user}] })
+        });
+        const j = await r.json();
+        statusEl.textContent = "";
+        out.textContent += "Bot: " + (j.reply || j.error || "Error") + "\n\n";
+        document.getElementById("q").value = "";
+      };
+    </script>
+  </body>
+</html>
